@@ -9,8 +9,14 @@ let tournamentState = {
     playerStats: {},
     matchResults: {},
     activeMatch: null,
-    allRounds: [], // Хранит данные всех раундов
-    usedPairs: new Set() // Хранит уже использованные пары игроков
+    allRounds: [],
+    usedPairs: new Set()
+};
+
+// Добавим переменную для сортировки статистики
+let playerStatsSortConfig = {
+    column: 'points', // Колонка для сортировки
+    direction: 'desc' // Направление: 'asc' или 'desc'
 };
 
 // ========== DOM ЭЛЕМЕНТЫ ==========
@@ -160,14 +166,16 @@ function initializeTournament() {
     tournamentState.allRounds = [];
     tournamentState.usedPairs = new Set();
     
-    // Инициализация статистики игроков
+    // Инициализация статистики игроков с очками
     tournamentState.players.forEach(player => {
         tournamentState.playerStats[player] = {
+            points: 0,
             wins: 0,
             losses: 0,
             draws: 0,
             goals: 0,
-            goalsAgainst: 0
+            goalsAgainst: 0,
+            goalDifference: 0
         };
     });
     
@@ -205,26 +213,20 @@ function createNewRound() {
 
 function generateUniqueTeams(players, numTeams) {
     const availablePlayers = [...players];
-    const teams = [];
     
-    // Пытаемся создать уникальные команды
     for (let attempt = 0; attempt < 100; attempt++) {
-        // Перемешиваем игроков
         shuffleArray(availablePlayers);
         
         const tempTeams = [];
         const tempUsedPairs = new Set();
         let valid = true;
         
-        // Формируем команды из перемешанных игроков
         for (let i = 0; i < numTeams; i++) {
             const player1 = availablePlayers[i * 2];
             const player2 = availablePlayers[i * 2 + 1];
             
-            // Создаем ключ для пары (сортированный)
             const pairKey = [player1, player2].sort().join('|');
             
-            // Проверяем, не была ли эта пара уже использована
             if (tournamentState.usedPairs.has(pairKey)) {
                 valid = false;
                 break;
@@ -234,20 +236,16 @@ function generateUniqueTeams(players, numTeams) {
             tempUsedPairs.add(pairKey);
         }
         
-        // Если все пары уникальны, используем их
         if (valid) {
-            // Добавляем пары в usedPairs
             tempUsedPairs.forEach(pair => tournamentState.usedPairs.add(pair));
             return tempTeams;
         }
     }
     
-    // Если не удалось создать уникальные команды, используем любые
-    console.warn('Не удалось создать полностью уникальные команды, используем доступные');
-    
+    // Fallback
     const fallbackTeams = [];
     for (let i = 0; i < numTeams; i++) {
-        fallbackTeams.push([availablePlayers[i * 2], availablePlayers[i * 2 + 1]]);
+        fallbackTeams.push([availablePlayers[i * 2], availablePlayers[i + 1]]);
     }
     
     return fallbackTeams;
@@ -278,10 +276,8 @@ function initializeMatchSchedule() {
     const numTeams = tournamentState.teamStats.length;
     tournamentState.matchResults = {};
     
-    // Создаем расписание матчей
     const matches = createBalancedSchedule(numTeams);
     
-    // Заполняем matchResults
     matches.forEach(([team1Index, team2Index]) => {
         const matchKey = `${team1Index}-${team2Index}`;
         tournamentState.matchResults[matchKey] = {
@@ -291,7 +287,6 @@ function initializeMatchSchedule() {
         };
     });
     
-    // Начинаем с первого матча
     tournamentState.currentMatchIndex = 0;
     const firstMatch = matches[0];
     tournamentState.activeMatch = `${firstMatch[0]}-${firstMatch[1]}`;
@@ -300,17 +295,14 @@ function initializeMatchSchedule() {
 function createBalancedSchedule(numTeams) {
     const matches = [];
     
-    // Создаем все возможные пары
     for (let i = 0; i < numTeams; i++) {
         for (let j = i + 1; j < numTeams; j++) {
             matches.push([i, j]);
         }
     }
     
-    // Перемешиваем матчи
     shuffleArray(matches);
     
-    // Переупорядочиваем матчи, чтобы команда не играла подряд больше 2 раз
     return balanceMatches(matches, numTeams);
 }
 
@@ -325,16 +317,13 @@ function balanceMatches(matches, numTeams) {
     while (matches.length > 0 && attempts < maxAttempts) {
         attempts++;
         
-        // Находим команду, которая дольше всех не играла
         let teamToPlay = teamLastMatches.indexOf(Math.min(...teamLastMatches));
-        
-        // Ищем матч с этой командой
         let matchIndex = -1;
+        
         for (let i = 0; i < matches.length; i++) {
             if (matches[i][0] === teamToPlay || matches[i][1] === teamToPlay) {
                 const otherTeam = matches[i][0] === teamToPlay ? matches[i][1] : matches[i][0];
                 
-                // Проверяем, не играла ли команда подряд 2 раза
                 if (teamMatchCount[teamToPlay] < 2 && teamMatchCount[otherTeam] < 2) {
                     matchIndex = i;
                     break;
@@ -342,22 +331,18 @@ function balanceMatches(matches, numTeams) {
             }
         }
         
-        // Если нашли подходящий матч
         if (matchIndex !== -1) {
             const match = matches.splice(matchIndex, 1)[0];
             balancedMatches.push(match);
             
-            // Обновляем счетчики
             teamLastMatches[match[0]] = balancedMatches.length;
             teamLastMatches[match[1]] = balancedMatches.length;
             teamMatchCount[match[0]]++;
             teamMatchCount[match[1]]++;
             
-            // Сбрасываем счетчики, если команда сыграла 2 раза
             if (teamMatchCount[match[0]] >= 2) teamMatchCount[match[0]] = 0;
             if (teamMatchCount[match[1]] >= 2) teamMatchCount[match[1]] = 0;
         } else {
-            // Если не нашли подходящий матч, берем любой
             const match = matches.shift();
             balancedMatches.push(match);
             teamLastMatches[match[0]] = balancedMatches.length;
@@ -365,7 +350,6 @@ function balanceMatches(matches, numTeams) {
         }
     }
     
-    // Если остались необработанные матчи, добавляем их в конец
     if (matches.length > 0) {
         balancedMatches.push(...matches);
     }
@@ -384,7 +368,6 @@ function updateTournamentInterface() {
 function updateAllTables() {
     allTablesContainer.innerHTML = '';
     
-    // Отображаем все созданные раунды
     tournamentState.allRounds.forEach(roundData => {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'round-table';
@@ -397,7 +380,6 @@ function updateAllTables() {
         
         roundDiv.appendChild(roundTitle);
         
-        // Создаем таблицу для этого раунда
         const tableHTML = createTableForRound(roundData);
         roundDiv.innerHTML += tableHTML;
         
@@ -415,7 +397,6 @@ function createTableForRound(roundData) {
                     <th class="team-header">Команды</th>
     `;
     
-    // Заголовки столбцов матчей
     for (let i = 1; i <= numTeams; i++) {
         html += `<th class="match-header">vs К${i}</th>`;
     }
@@ -432,36 +413,30 @@ function createTableForRound(roundData) {
             <tbody>
     `;
     
-    // Строки для каждой команды
     roundData.combinations.forEach((team, teamIndex) => {
         const teamStats = roundData.teamStats[teamIndex];
         
         html += `<tr>`;
         
-        // Ячейка с именами игроков
         html += `<td class="team-cell">`;
         team.forEach(player => {
             html += `<div class="player-name-cell">${player}</div>`;
         });
         html += `</td>`;
         
-        // Ячейки с результатами матчей
         for (let i = 0; i < numTeams; i++) {
             if (teamIndex === i) {
-                // Диагональная ячейка
                 html += `<td class="diagonal-cell">-</td>`;
             } else {
                 const matchKey = teamIndex < i ? `${teamIndex}-${i}` : `${i}-${teamIndex}`;
                 const match = roundData.matchResults[matchKey];
                 
                 if (match && match.played) {
-                    // Матч сыгран
                     const isTeam1 = teamIndex < i;
                     const score1 = match.score1;
                     const score2 = match.score2;
                     const score = isTeam1 ? `${score1}:${score2}` : `${score2}:${score1}`;
                     
-                    // Определяем очки для этой команды
                     let points = 0;
                     if (isTeam1) {
                         if (score1 > score2) points = 3;
@@ -471,7 +446,6 @@ function createTableForRound(roundData) {
                         else if (score1 === score2) points = 1;
                     }
                     
-                    // Проверяем, активный ли это матч в текущем раунде
                     const isActiveMatch = roundData.round === tournamentState.currentRound && 
                                           matchKey === tournamentState.activeMatch;
                     const cellClass = isActiveMatch ? 'active-match' : '';
@@ -483,13 +457,11 @@ function createTableForRound(roundData) {
                         </td>
                     `;
                 } else if (match) {
-                    // Матч не сыгран, но идет или будет
                     const isTeam1 = teamIndex < i;
                     const score1 = match.score1;
                     const score2 = match.score2;
                     const score = isTeam1 ? `${score1}:${score2}` : `${score2}:${score1}`;
                     
-                    // Проверяем, активный ли это матч
                     const isActiveMatch = roundData.round === tournamentState.currentRound && 
                                           matchKey === tournamentState.activeMatch;
                     const cellClass = isActiveMatch ? 'active-match' : '';
@@ -503,7 +475,6 @@ function createTableForRound(roundData) {
             }
         }
         
-        // Статистические ячейки
         html += `
             <td class="stats-cell">${teamStats.goals}</td>
             <td class="stats-cell">${teamStats.goalsAgainst}</td>
@@ -568,34 +539,90 @@ function updateCurrentMatchDisplay() {
     currentMatchContainer.innerHTML = html;
 }
 
+// ========== НОВАЯ ФУНКЦИЯ: СОРТИРОВКА СТАТИСТИКИ ИГРОКОВ ==========
+function sortPlayerStats() {
+    const players = tournamentState.players.map(player => ({
+        name: player,
+        stats: tournamentState.playerStats[player]
+    }));
+    
+    players.sort((a, b) => {
+        const statsA = a.stats;
+        const statsB = b.stats;
+        
+        // Приоритет сортировки:
+        // 1. Очки (по убыванию)
+        // 2. Голы (по убыванию)
+        // 3. Разница голов (по убыванию)
+        // 4. Ничьи (по убыванию)
+        // 5. Поражения (по возрастанию - чем меньше поражений, тем лучше)
+        
+        // 1. Очки
+        if (statsB.points !== statsA.points) {
+            return statsB.points - statsA.points;
+        }
+        
+        // 2. Голы
+        if (statsB.goals !== statsA.goals) {
+            return statsB.goals - statsA.goals;
+        }
+        
+        // 3. Разница голов
+        const diffA = statsA.goals - statsA.goalsAgainst;
+        const diffB = statsB.goals - statsB.goalsAgainst;
+        if (diffB !== diffA) {
+            return diffB - diffA;
+        }
+        
+        // 4. Ничьи
+        if (statsB.draws !== statsA.draws) {
+            return statsB.draws - statsA.draws;
+        }
+        
+        // 5. Поражения (чем меньше, тем лучше)
+        return statsA.losses - statsB.losses;
+    });
+    
+    return players;
+}
+
 function updatePlayerStatsTable() {
-    const players = tournamentState.players;
+    const players = sortPlayerStats();
     
     let html = `
         <table class="player-stats-table">
             <thead>
                 <tr>
-                    <th>Имя</th>
-                    <th>Победы</th>
-                    <th>Поражения</th>
-                    <th>Ничьи</th>
-                    <th>Голы</th>
-                    <th>Пропущенные</th>
+                    <th onclick="sortByColumn('name')">Имя</th>
+                    <th onclick="sortByColumn('points')" class="${playerStatsSortConfig.column === 'points' ? (playerStatsSortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc') : ''}">Очки</th>
+                    <th onclick="sortByColumn('wins')" class="${playerStatsSortConfig.column === 'wins' ? (playerStatsSortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc') : ''}">Победы</th>
+                    <th onclick="sortByColumn('losses')" class="${playerStatsSortConfig.column === 'losses' ? (playerStatsSortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc') : ''}">Поражения</th>
+                    <th onclick="sortByColumn('draws')" class="${playerStatsSortConfig.column === 'draws' ? (playerStatsSortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc') : ''}">Ничьи</th>
+                    <th onclick="sortByColumn('goals')" class="${playerStatsSortConfig.column === 'goals' ? (playerStatsSortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc') : ''}">Голы</th>
+                    <th onclick="sortByColumn('goalsAgainst')" class="${playerStatsSortConfig.column === 'goalsAgainst' ? (playerStatsSortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc') : ''}">Пропущенные</th>
+                    <th onclick="sortByColumn('goalDifference')" class="${playerStatsSortConfig.column === 'goalDifference' ? (playerStatsSortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc') : ''}">Разница</th>
                 </tr>
             </thead>
             <tbody>
     `;
     
     players.forEach(player => {
-        const stats = tournamentState.playerStats[player];
+        const stats = player.stats;
+        const goalDiff = stats.goals - stats.goalsAgainst;
+        const goalDiffClass = goalDiff > 0 ? 'goal-diff-positive' : 
+                             goalDiff < 0 ? 'goal-diff-negative' : 'goal-diff-zero';
+        const goalDiffDisplay = goalDiff > 0 ? `+${goalDiff}` : goalDiff;
+        
         html += `
             <tr>
-                <td><strong>${player}</strong></td>
+                <td><strong>${player.name}</strong></td>
+                <td class="points-cell">${stats.points}</td>
                 <td class="wins-cell">${stats.wins}</td>
                 <td class="losses-cell">${stats.losses}</td>
                 <td class="draws-cell">${stats.draws}</td>
                 <td>${stats.goals}</td>
                 <td>${stats.goalsAgainst}</td>
+                <td class="${goalDiffClass}">${goalDiffDisplay}</td>
             </tr>
         `;
     });
@@ -604,13 +631,26 @@ function updatePlayerStatsTable() {
     playerStatsTable.innerHTML = html;
 }
 
+// Функция для сортировки по колонке
+window.sortByColumn = function(column) {
+    if (playerStatsSortConfig.column === column) {
+        // Если уже сортируем по этой колонке, меняем направление
+        playerStatsSortConfig.direction = playerStatsSortConfig.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        // Если новая колонка, сортируем по убыванию
+        playerStatsSortConfig.column = column;
+        playerStatsSortConfig.direction = 'desc';
+    }
+    
+    updatePlayerStatsTable();
+};
+
 // ========== УПРАВЛЕНИЕ ГОЛАМИ ==========
 window.showGoalModal = function(action, teamIndex, player) {
     const [team1Index, team2Index] = tournamentState.activeMatch.split('-').map(Number);
     const isTeam1 = teamIndex === team1Index;
     const match = tournamentState.matchResults[tournamentState.activeMatch];
     
-    // Проверяем, можно ли отменить гол
     if (action === 'remove') {
         if (isTeam1 && match.score1 === 0) {
             alert('Нет голов для отмены у этой команды');
@@ -649,14 +689,11 @@ function handleConfirmGoal() {
     const [team1Index, team2Index] = matchKey.split('-').map(Number);
     
     if (action === 'add') {
-        // Добавление гола
         if (isTeam1) {
             match.score1++;
-            // Обновляем голы команды
             tournamentState.teamStats[team1Index].goals++;
-            // Обновляем пропущенные у противоположной команды
             tournamentState.teamStats[team2Index].goalsAgainst++;
-            // Обновляем пропущенные у игроков противоположной команды
+            tournamentState.playerStats[player].goals++;
             tournamentState.teamStats[team2Index].players.forEach(oppPlayer => {
                 tournamentState.playerStats[oppPlayer].goalsAgainst++;
             });
@@ -664,16 +701,13 @@ function handleConfirmGoal() {
             match.score2++;
             tournamentState.teamStats[team2Index].goals++;
             tournamentState.teamStats[team1Index].goalsAgainst++;
+            tournamentState.playerStats[player].goals++;
             tournamentState.teamStats[team1Index].players.forEach(oppPlayer => {
                 tournamentState.playerStats[oppPlayer].goalsAgainst++;
             });
         }
         
-        // Обновление статистики игрока (голы)
-        tournamentState.playerStats[player].goals++;
-        
     } else {
-        // Отмена гола
         if (isTeam1 && match.score1 > 0) {
             match.score1--;
             tournamentState.teamStats[team1Index].goals--;
@@ -693,7 +727,6 @@ function handleConfirmGoal() {
         }
     }
     
-    // Обновляем данные текущего раунда
     updateCurrentRoundData();
     
     goalModal.style.display = 'none';
@@ -702,7 +735,6 @@ function handleConfirmGoal() {
 }
 
 function updateCurrentRoundData() {
-    // Находим текущий раунд в allRounds и обновляем его данные
     const currentRoundIndex = tournamentState.currentRound - 1;
     tournamentState.allRounds[currentRoundIndex] = {
         round: tournamentState.currentRound,
@@ -717,26 +749,21 @@ function handleEndMatch() {
     const matchKey = tournamentState.activeMatch;
     const match = tournamentState.matchResults[matchKey];
     
-    // Матч можно завершить даже со счетом 0:0
     match.played = true;
     
-    // Обновляем статистику команд
     updateTeamStatsAfterMatch();
+    updatePlayerPointsAfterMatch();
     
-    // Обновляем данные текущего раунда
     updateCurrentRoundData();
     
-    // Переходим к следующему матчу
     const matches = Object.keys(tournamentState.matchResults);
     const currentIndex = matches.indexOf(matchKey);
     
     if (currentIndex < matches.length - 1) {
-        // Есть ещё матчи в этом раунде
         tournamentState.currentMatchIndex = currentIndex + 1;
         tournamentState.activeMatch = matches[currentIndex + 1];
         updateTournamentInterface();
     } else {
-        // Все матчи раунда сыграны
         checkTournamentProgress();
     }
 }
@@ -748,13 +775,11 @@ function updateTeamStatsAfterMatch() {
     const team1 = tournamentState.teamStats[team1Index];
     const team2 = tournamentState.teamStats[team2Index];
     
-    // Обновляем победы/поражения/ничьи
     if (match.score1 > match.score2) {
         team1.wins++;
         team1.points += 3;
         team2.losses++;
         
-        // Обновляем статистику игроков
         team1.players.forEach(player => tournamentState.playerStats[player].wins++);
         team2.players.forEach(player => tournamentState.playerStats[player].losses++);
     } else if (match.score1 < match.score2) {
@@ -775,17 +800,47 @@ function updateTeamStatsAfterMatch() {
     }
 }
 
+// НОВАЯ ФУНКЦИЯ: Обновление очков игроков после матча
+function updatePlayerPointsAfterMatch() {
+    const matchKey = tournamentState.activeMatch;
+    const match = tournamentState.matchResults[matchKey];
+    const [team1Index, team2Index] = matchKey.split('-').map(Number);
+    const team1 = tournamentState.teamStats[team1Index];
+    const team2 = tournamentState.teamStats[team2Index];
+    
+    // Распределяем очки игрокам
+    if (match.score1 > match.score2) {
+        // Команда 1 победила
+        team1.players.forEach(player => tournamentState.playerStats[player].points += 3);
+    } else if (match.score1 < match.score2) {
+        // Команда 2 победила
+        team2.players.forEach(player => tournamentState.playerStats[player].points += 3);
+    } else {
+        // Ничья
+        team1.players.forEach(player => tournamentState.playerStats[player].points += 1);
+        team2.players.forEach(player => tournamentState.playerStats[player].points += 1);
+    }
+    
+    // Обновляем разницу голов у игроков
+    team1.players.forEach(player => {
+        tournamentState.playerStats[player].goalDifference = 
+            tournamentState.playerStats[player].goals - tournamentState.playerStats[player].goalsAgainst;
+    });
+    team2.players.forEach(player => {
+        tournamentState.playerStats[player].goalDifference = 
+            tournamentState.playerStats[player].goals - tournamentState.playerStats[player].goalsAgainst;
+    });
+}
+
 function checkTournamentProgress() {
     const allMatchesPlayed = Object.values(tournamentState.matchResults).every(match => match.played);
     
     if (allMatchesPlayed) {
         if (tournamentState.currentRound < tournamentState.totalRounds) {
-            // Создаем новый раунд
             tournamentState.currentRound++;
             createNewRound();
             updateTournamentInterface();
         } else {
-            // Турнир завершен
             showFinalResults();
         }
     }
@@ -795,11 +850,11 @@ function checkTournamentProgress() {
 function showFinalResults() {
     const players = tournamentState.players;
     
-    // Собираем статистику для сортировки
     const playerResults = players.map(player => {
         const stats = tournamentState.playerStats[player];
         return {
             name: player,
+            points: stats.points,
             wins: stats.wins,
             losses: stats.losses,
             draws: stats.draws,
@@ -809,22 +864,22 @@ function showFinalResults() {
         };
     });
     
-    // Сортируем по правилам турнира
+    // НОВАЯ ЛОГИКА СОРТИРОВКИ ДЛЯ ФИНАЛЬНЫХ РЕЗУЛЬТАТОВ:
     playerResults.sort((a, b) => {
-        // 1. Больше побед
-        if (b.wins !== a.wins) return b.wins - a.wins;
+        // 1. Очки (по убыванию)
+        if (b.points !== a.points) return b.points - a.points;
         
-        // 2. Меньше поражений
-        if (a.losses !== b.losses) return a.losses - b.losses;
-        
-        // 3. Больше голов
+        // 2. Голы (по убыванию)
         if (b.goals !== a.goals) return b.goals - a.goals;
         
-        // 4. Меньше пропущенных
-        if (a.goalsAgainst !== b.goalsAgainst) return a.goalsAgainst - b.goalsAgainst;
+        // 3. Разница голов (по убыванию)
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
         
-        // 5. Больше ничьих
-        return b.draws - a.draws;
+        // 4. Ничьи (по убыванию)
+        if (b.draws !== a.draws) return b.draws - a.draws;
+        
+        // 5. Поражения (по возрастанию - чем меньше, тем лучше)
+        return a.losses - b.losses;
     });
     
     let html = `
@@ -833,6 +888,7 @@ function showFinalResults() {
                 <tr>
                     <th>Место</th>
                     <th>Игрок</th>
+                    <th>Очки</th>
                     <th>Победы</th>
                     <th>Поражения</th>
                     <th>Ничьи</th>
@@ -849,14 +905,13 @@ function showFinalResults() {
     playerResults.forEach((player, index) => {
         let position = currentPosition;
         
-        // Проверяем, делит ли игрок место с предыдущим
         if (index > 0) {
             const prev = playerResults[index - 1];
-            if (player.wins === prev.wins &&
-                player.losses === prev.losses &&
+            if (player.points === prev.points &&
                 player.goals === prev.goals &&
-                player.goalsAgainst === prev.goalsAgainst &&
-                player.draws === prev.draws) {
+                player.goalDifference === prev.goalDifference &&
+                player.draws === prev.draws &&
+                player.losses === prev.losses) {
                 position = currentPosition;
             } else {
                 position = index + 1;
@@ -865,6 +920,7 @@ function showFinalResults() {
         }
         
         const positionClass = position <= 3 ? `position-${position}` : 'position-other';
+        const goalDiffDisplay = player.goalDifference > 0 ? `+${player.goalDifference}` : player.goalDifference;
         
         html += `
             <tr>
@@ -872,12 +928,13 @@ function showFinalResults() {
                     <div class="position-cell ${positionClass}">${position}</div>
                 </td>
                 <td><strong>${player.name}</strong></td>
+                <td class="points-cell">${player.points}</td>
                 <td class="wins-cell">${player.wins}</td>
                 <td class="losses-cell">${player.losses}</td>
                 <td class="draws-cell">${player.draws}</td>
                 <td>${player.goals}</td>
                 <td>${player.goalsAgainst}</td>
-                <td>${player.goalDifference > 0 ? '+' : ''}${player.goalDifference}</td>
+                <td>${goalDiffDisplay}</td>
             </tr>
         `;
     });
@@ -911,11 +968,16 @@ function resetTournamentState() {
         usedPairs: new Set()
     };
     
+    playerStatsSortConfig = {
+        column: 'points',
+        direction: 'desc'
+    };
+    
     numPlayersInput.value = '4';
     playersInputContainer.innerHTML = '';
     allTablesContainer.innerHTML = '';
 }
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
-// Экспортируем функции для глобального использования
 window.showGoalModal = showGoalModal;
+window.sortByColumn = sortByColumn;

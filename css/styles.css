@@ -404,7 +404,7 @@ button {
 }
 
 /* Статистика игроков */
-.stats-section {
+/* .stats-section {
     background-color: #f8f9fa;
     padding: 20px;
     border-radius: 10px;
@@ -440,7 +440,7 @@ button {
 
 .player-stats-table tr:hover {
     background-color: #f8f9fa;
-}
+} */
 
 /* Модальное окно */
 .modal {
@@ -534,6 +534,82 @@ button {
 
 .results-controls {
     margin-top: 30px;
+}
+
+/* Статистика игроков */
+.stats-section {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+    height: 100%;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.player-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.player-stats-table th {
+    background-color: #34495e;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.player-stats-table th:hover {
+    background-color: #2c3e50;
+}
+
+.player-stats-table th.sorted-asc::after {
+    content: " ↑";
+    font-size: 0.9em;
+}
+
+.player-stats-table th.sorted-desc::after {
+    content: " ↓";
+    font-size: 0.9em;
+}
+
+.player-stats-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.player-stats-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Очки в статистике */
+.points-cell {
+    font-weight: bold;
+    color: #3498db;
+}
+
+.goal-diff-positive {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.goal-diff-negative {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.goal-diff-zero {
+    color: #7f8c8d;
+    font-weight: bold;
 }
 
 /* Адаптивность */
