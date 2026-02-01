@@ -554,6 +554,7 @@ button {
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    text-align: center;
 }
 
 .player-stats-table th {
@@ -584,6 +585,8 @@ button {
 
 .player-stats-table td {
     padding: 10px;
+    text-align: center; /* Центрирование текста */
+    vertical-align: middle; /* Вертикальное центрирование */
     border-bottom: 1px solid #eee;
 }
 
