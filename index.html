@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Турнирный менеджер (Круговая система)</title>
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 Турнирный менеджер (Круговая система)</h1>
+        
+        <!-- Шаг 1: Ввод количества игроков -->
+        <div id="step1" class="step">
+            <div class="input-section">
+                <h2>Шаг 1: Ввод количества игроков</h2>
+                <div class="input-group">
+                    <label for="numPlayers">Введите количество участников (чётное число, от 4 до 20):</label>
+                    <input type="number" id="numPlayers" placeholder="4, 6, 8, 10, ..." min="4" max="20" step="2" value="4">
+                    <button id="setPlayersCountBtn">Далее →</button>
+                    <div id="errorMessage" class="error"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Шаг 2: Ввод имён игроков -->
+        <div id="step2" class="step" style="display: none;">
+            <div class="input-section">
+                <h2>Шаг 2: Ввод имён игроков</h2>
+                <div id="playersInputContainer" class="players-input-container"></div>
+                <button id="confirmPlayersBtn">Подтвердить имена</button>
+                <button id="backToStep1Btn" class="btn-secondary">← Назад</button>
+                <div id="playersError" class="error"></div>
+            </div>
+        </div>
+        
+        <!-- Шаг 3: Турнир -->
+        <div id="step3" class="step" style="display: none;">
+            <div class="tournament-section">
+                <div class="tournament-header">
+                    <h2>Турнирные таблицы</h2>
+                    <div class="round-info">
+                        Текущий раунд: <span id="currentRound">1</span>
+                    </div>
+                </div>
+                
+                <!-- Контейнер для всех таблиц -->
+                <div id="allTablesContainer" class="all-tables-container"></div>
+                
+                <!-- Панель управления (всегда наверху) -->
+                <div class="control-panel">
+                    <!-- Форма текущего матча -->
+                    <div class="match-controls">
+                        <h3>Текущий матч</h3>
+                        <div id="currentMatchContainer" class="current-match"></div>
+                        <div class="match-buttons">
+                            <button id="endMatchBtn" class="btn-primary">Завершить матч</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Статистика игроков -->
+                    <div class="stats-section">
+                        <h3>Статистика игроков</h3>
+                        <div id="playerStatsTable"></div>
+                    </div>
+                </div>
+                
+                <!-- Кнопки управления -->
+                <div class="tournament-controls">
+                    <button id="backToStep2Btn" class="btn-secondary">← Назад к игрокам</button>
+                    <button id="resetTournamentBtn" class="btn-danger">Сбросить турнир</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Шаг 4: Результаты -->
+        <div id="step4" class="step" style="display: none;">
+            <div class="results-section">
+                <h2>🏆 Результаты турнира</h2>
+                <div id="finalResults"></div>
+                <div class="results-controls">
+                    <button id="newTournamentBtn" class="btn-primary">Начать новый турнир</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения гола -->
+    <div id="goalModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Подтверждение гола</h3>
+            <p id="modalMessage">Вы уверены, что хотите засчитать гол?</p>
+            <div class="modal-buttons">
+                <button id="confirmGoalBtn" class="btn-primary">Да, засчитать</button>
+                <button id="cancelGoalBtn" class="btn-secondary">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/script.js"></script>
+</body>
+</html>
